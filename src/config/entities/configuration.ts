@@ -37,7 +37,7 @@ export default () => ({
         prices: {
           baseUri:
             process.env.PRICES_PROVIDER_API_BASE_URI ||
-            'https://api.coingecko.com/api/v3',
+            'https://pro-api.coingecko.com/api/v3',
           apiKey: process.env.PRICES_PROVIDER_API_KEY,
           pricesTtlSeconds: parseInt(
             process.env.PRICES_TTL_SECONDS ?? `${300}`,
