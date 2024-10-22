@@ -17,6 +17,7 @@ export class SafeBalancesApi implements IBalancesApi {
   private readonly defaultExpirationTimeInSeconds: number;
   private readonly defaultNotFoundExpirationTimeSeconds: number;
   private static readonly DEFAULT_DECIMALS = 18;
+  private static readonly HOLESKY_CHAIN_ID = '17000';
 
   constructor(
     private readonly chainId: string,
@@ -27,18 +28,28 @@ export class SafeBalancesApi implements IBalancesApi {
     private readonly httpErrorFactory: HttpErrorFactory,
     private readonly coingeckoApi: IPricesApi,
   ) {
-    this.defaultExpirationTimeInSeconds =
-      this.configurationService.getOrThrow<number>(
-        'expirationTimeInSeconds.default',
-      );
-    this.defaultNotFoundExpirationTimeSeconds =
-      this.configurationService.getOrThrow<number>(
-        'expirationTimeInSeconds.notFound.default',
-      );
+    // TODO: Remove temporary cache times for Holesky chain.
+    if (chainId === SafeBalancesApi.HOLESKY_CHAIN_ID) {
+      const holeskyExpirationTime =
+        this.configurationService.getOrThrow<number>(
+          'expirationTimeInSeconds.holesky',
+        );
+      this.defaultExpirationTimeInSeconds = holeskyExpirationTime;
+      this.defaultNotFoundExpirationTimeSeconds = holeskyExpirationTime;
+    } else {
+      this.defaultExpirationTimeInSeconds =
+        this.configurationService.getOrThrow<number>(
+          'expirationTimeInSeconds.default',
+        );
+      this.defaultNotFoundExpirationTimeSeconds =
+        this.configurationService.getOrThrow<number>(
+          'expirationTimeInSeconds.notFound.default',
+        );
+    }
   }
 
   async getBalances(args: {
-    safeAddress: string;
+    safeAddress: `0x${string}`;
     fiatCode: string;
     chain: Chain;
     trusted?: boolean;
@@ -69,7 +80,7 @@ export class SafeBalancesApi implements IBalancesApi {
     }
   }
 
-  async clearBalances(args: { safeAddress: string }): Promise<void> {
+  async clearBalances(args: { safeAddress: `0x${string}` }): Promise<void> {
     const key = CacheRouter.getBalancesCacheKey({
       chainId: this.chainId,
       safeAddress: args.safeAddress,
@@ -78,7 +89,7 @@ export class SafeBalancesApi implements IBalancesApi {
   }
 
   async getCollectibles(args: {
-    safeAddress: string;
+    safeAddress: `0x${string}`;
     limit?: number;
     offset?: number;
     trusted?: boolean;
@@ -109,7 +120,7 @@ export class SafeBalancesApi implements IBalancesApi {
     }
   }
 
-  async clearCollectibles(args: { safeAddress: string }): Promise<void> {
+  async clearCollectibles(args: { safeAddress: `0x${string}` }): Promise<void> {
     const key = CacheRouter.getCollectiblesKey({
       chainId: this.chainId,
       safeAddress: args.safeAddress,
@@ -119,6 +130,16 @@ export class SafeBalancesApi implements IBalancesApi {
 
   async getFiatCodes(): Promise<string[]> {
     return this.coingeckoApi.getFiatCodes();
+  }
+
+  /**
+   * Gets the USD price of the native coin of the chain associated with {@link chainId}.
+   */
+  async getNativeCoinPrice(chain: Chain): Promise<number | null> {
+    return this.coingeckoApi.getNativeCoinPrice({
+      chain,
+      fiatCode: 'USD',
+    });
   }
 
   private async _mapBalances(

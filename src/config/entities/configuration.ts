@@ -3,8 +3,26 @@
 export default () => ({
   about: {
     name: 'safe-client-gateway',
-    version: process.env.APPLICATION_VERSION,
+    version: process.env.APPLICATION_VERSION || '1.58.0',
     buildNumber: process.env.APPLICATION_BUILD_NUMBER,
+  },
+  accounts: {
+    creationRateLimitPeriodSeconds: parseInt(
+      process.env.ACCOUNT_CREATION_RATE_LIMIT_PERIOD_SECONDS ?? `${3600}`,
+    ),
+    creationRateLimitCalls: parseInt(
+      process.env.ACCOUNT_CREATION_RATE_LIMIT_CALLS_BY_PERIOD ?? `${25}`,
+    ),
+    counterfactualSafes: {
+      creationRateLimitPeriodSeconds: parseInt(
+        process.env.COUNTERFACTUAL_SAFES_CREATION_RATE_LIMIT_PERIOD_SECONDS ??
+          `${3600}`,
+      ),
+      creationRateLimitCalls: parseInt(
+        process.env.COUNTERFACTUAL_SAFES_CREATION_RATE_LIMIT_CALLS_BY_PERIOD ??
+          `${25}`,
+      ),
+    },
   },
   amqp: {
     url: process.env.AMQP_URL || 'amqp://localhost:5672',
@@ -23,15 +41,23 @@ export default () => ({
         ? parseInt(process.env.AMQP_PREFETCH)
         : 100,
   },
-  applicationPort: process.env.APPLICATION_PORT || '3000',
+  application: {
+    isProduction: process.env.CGW_ENV === 'production',
+    // Enables/disables the execution of migrations on startup.
+    // Defaults to true.
+    runMigrations: process.env.RUN_MIGRATIONS?.toLowerCase() !== 'false',
+    port: process.env.APPLICATION_PORT || '3000',
+  },
   auth: {
     token: process.env.AUTH_TOKEN,
     nonceTtlSeconds: parseInt(
       process.env.AUTH_NONCE_TTL_SECONDS ?? `${5 * 60}`,
     ),
+    maxValidityPeriodSeconds: parseInt(
+      process.env.AUTH_VALIDITY_PERIOD_SECONDS ?? `${24 * 60 * 60}`, // 24 hours
+    ),
   },
   balances: {
-    balancesTtlSeconds: parseInt(process.env.BALANCES_TTL_SECONDS ?? `${300}`),
     providers: {
       safe: {
         prices: {
@@ -48,27 +74,6 @@ export default () => ({
           notFoundPriceTtlSeconds: parseInt(
             process.env.NOT_FOUND_PRICE_TTL_SECONDS ?? `${72 * 60 * 60}`,
           ),
-          chains: {
-            1: { nativeCoin: 'ethereum', chainName: 'ethereum' },
-            10: { nativeCoin: 'ethereum', chainName: 'optimistic-ethereum' },
-            100: { nativeCoin: 'xdai', chainName: 'xdai' },
-            1101: { nativeCoin: 'ethereum', chainName: 'polygon-zkevm' },
-            11155111: { nativeCoin: 'ethereum', chainName: 'ethereum' },
-            1313161554: { nativeCoin: 'ethereum', chainName: 'aurora' },
-            137: { nativeCoin: 'matic-network', chainName: 'polygon-pos' },
-            196: { nativeCoin: 'okb', chainName: 'x1' },
-            324: { nativeCoin: 'ethereum', chainName: 'zksync' },
-            42161: { nativeCoin: 'ethereum', chainName: 'arbitrum-one' },
-            42220: { nativeCoin: 'celo', chainName: 'celo' },
-            43114: { nativeCoin: 'avalanche-2', chainName: 'avalanche' },
-            5: { nativeCoin: 'ethereum', chainName: 'ethereum' },
-            534352: { nativeCoin: 'weth', chainName: 'scroll' },
-            56: { nativeCoin: 'binancecoin', chainName: 'binance-smart-chain' },
-            8453: { nativeCoin: 'ethereum', chainName: 'base' },
-            84531: { nativeCoin: 'ethereum', chainName: 'base' },
-            84532: { nativeCoin: 'ethereum', chainName: 'base' },
-            42793: { nativeCoin: 'tezos', chainName: 'etherlink' },
-          },
           highRefreshRateTokens:
             process.env.HIGH_REFRESH_RATE_TOKENS?.split(',') ?? [],
           highRefreshRateTokensTtlSeconds: parseInt(
@@ -82,19 +87,17 @@ export default () => ({
         chains: {
           1: { chainName: 'ethereum' },
           10: { chainName: 'optimism' },
-          56: { chainName: 'binance-smart-chain' },
           100: { chainName: 'xdai' },
+          1101: { chainName: 'polygon-zkevm' },
+          1313161554: { chainName: 'aurora' },
           137: { chainName: 'polygon' },
           324: { chainName: 'zksync-era' },
-          // 1101 (Polygon zkEVM) is not available on Zerion
-          // 1101: { chainName: '' },
-          8453: { chainName: 'base' },
           42161: { chainName: 'arbitrum' },
           42220: { chainName: 'celo' },
           43114: { chainName: 'avalanche' },
-          // 11155111 (Sepolia) is not available on Zerion
-          // 11155111: { chainName: '' },
-          1313161554: { chainName: 'aurora' },
+          534352: { chainName: 'scroll' },
+          56: { chainName: 'binance-smart-chain' },
+          8453: { chainName: 'base' },
         },
         currencies: [
           'usd',
@@ -121,6 +124,11 @@ export default () => ({
           process.env.ZERION_RATE_LIMIT_CALLS_BY_PERIOD ?? `${2}`,
         ),
       },
+    },
+  },
+  blockchain: {
+    infura: {
+      apiKey: process.env.INFURA_API_KEY,
     },
   },
   db: {
@@ -150,23 +158,13 @@ export default () => ({
     apiKey: process.env.EMAIL_API_KEY,
     fromEmail: process.env.EMAIL_API_FROM_EMAIL,
     fromName: process.env.EMAIL_API_FROM_NAME || 'Safe',
-    templates: {
-      recoveryTx: process.env.EMAIL_TEMPLATE_RECOVERY_TX,
-      unknownRecoveryTx: process.env.EMAIL_TEMPLATE_UNKNOWN_RECOVERY_TX,
-      verificationCode: process.env.EMAIL_TEMPLATE_VERIFICATION_CODE,
-    },
-    verificationCode: {
-      resendLockWindowMs: parseInt(
-        process.env.EMAIL_VERIFICATION_CODE_RESEND_LOCK_WINDOW_MS ??
-          `${30 * 1000}`,
-      ),
-      ttlMs: parseInt(
-        process.env.EMAIL_VERIFICATION_CODE_TTL_MS ?? `${5 * 60 * 1000}`,
-      ),
-    },
   },
   expirationTimeInSeconds: {
     default: parseInt(process.env.EXPIRATION_TIME_DEFAULT_SECONDS ?? `${60}`),
+    rpc: parseInt(process.env.EXPIRATION_TIME_RPC_SECONDS ?? `${15}`),
+    holesky: parseInt(process.env.HOLESKY_EXPIRATION_TIME_SECONDS ?? `${60}`),
+    indexing: parseInt(process.env.EXPIRATION_TIME_INDEXING_SECONDS ?? `${5}`),
+    staking: parseInt(process.env.EXPIRATION_TIME_STAKING_SECONDS ?? `${60}`),
     notFound: {
       default: parseInt(
         process.env.DEFAULT_NOT_FOUND_EXPIRE_TIME_SECONDS ?? `${30}`,
@@ -192,8 +190,10 @@ export default () => ({
     zerionBalancesChainIds:
       process.env.FF_ZERION_BALANCES_CHAIN_IDS?.split(',') ?? [],
     swapsDecoding: process.env.FF_SWAPS_DECODING?.toLowerCase() === 'true',
-    historyDebugLogs:
-      process.env.FF_HISTORY_DEBUG_LOGS?.toLowerCase() === 'true',
+    twapsDecoding: process.env.FF_TWAPS_DECODING?.toLowerCase() === 'true',
+    debugLogs: process.env.FF_DEBUG_LOGS?.toLowerCase() === 'true',
+    configHooksDebugLogs:
+      process.env.FF_CONFIG_HOOKS_DEBUG_LOGS?.toLowerCase() === 'true',
     imitationMapping:
       process.env.FF_IMITATION_MAPPING?.toLowerCase() === 'true',
     auth: process.env.FF_AUTH?.toLowerCase() === 'true',
@@ -201,6 +201,14 @@ export default () => ({
       process.env.FF_CONFIRMATION_VIEW?.toLowerCase() === 'true',
     eventsQueue: process.env.FF_EVENTS_QUEUE?.toLowerCase() === 'true',
     delegatesV2: process.env.FF_DELEGATES_V2?.toLowerCase() === 'true',
+    counterfactualBalances:
+      process.env.FF_COUNTERFACTUAL_BALANCES?.toLowerCase() === 'true',
+    accounts: process.env.FF_ACCOUNTS?.toLowerCase() === 'true',
+    pushNotifications:
+      process.env.FF_PUSH_NOTIFICATIONS?.toLowerCase() === 'true',
+    nativeStaking: process.env.FF_NATIVE_STAKING?.toLowerCase() === 'true',
+    nativeStakingDecoding:
+      process.env.FF_NATIVE_STAKING_DECODING?.toLowerCase() === 'true',
   },
   httpClient: {
     // Timeout in milliseconds to be used for the HTTP client.
@@ -224,6 +232,7 @@ export default () => ({
   },
   mappings: {
     imitation: {
+      lookupDistance: parseInt(process.env.IMITATION_LOOKUP_DISTANCE ?? `${3}`),
       prefixLength: parseInt(process.env.IMITATION_PREFIX_LENGTH ?? `${3}`),
       suffixLength: parseInt(process.env.IMITATION_SUFFIX_LENGTH ?? `${4}`),
     },
@@ -234,6 +243,18 @@ export default () => ({
     },
     safe: {
       maxOverviews: parseInt(process.env.MAX_SAFE_OVERVIEWS ?? `${10}`),
+    },
+  },
+  pushNotifications: {
+    baseUri:
+      process.env.PUSH_NOTIFICATIONS_API_BASE_URI ||
+      'https://fcm.googleapis.com/v1/projects',
+    project: process.env.PUSH_NOTIFICATIONS_API_PROJECT,
+    serviceAccount: {
+      clientEmail:
+        process.env.PUSH_NOTIFICATIONS_API_SERVICE_ACCOUNT_CLIENT_EMAIL,
+      privateKey:
+        process.env.PUSH_NOTIFICATIONS_API_SERVICE_ACCOUNT_PRIVATE_KEY,
     },
   },
   redis: {
@@ -249,6 +270,7 @@ export default () => ({
     ),
     apiKey: {
       100: process.env.RELAY_PROVIDER_API_KEY_GNOSIS_CHAIN,
+      42161: process.env.RELAY_PROVIDER_API_KEY_ARBITRUM_ONE,
       11155111: process.env.RELAY_PROVIDER_API_KEY_SEPOLIA,
     },
   },
@@ -262,10 +284,23 @@ export default () => ({
   safeWebApp: {
     baseUri: process.env.SAFE_WEB_APP_BASE_URI || 'https://app.safe.global',
   },
+  staking: {
+    testnet: {
+      baseUri:
+        process.env.STAKING_TESTNET_API_BASE_URI ||
+        'https://api.testnet.kiln.fi',
+      apiKey: process.env.STAKING_TESTNET_API_KEY,
+    },
+    mainnet: {
+      baseUri: process.env.STAKING_API_BASE_URI || 'https://api.kiln.fi',
+      apiKey: process.env.STAKING_API_KEY,
+    },
+  },
   swaps: {
     api: {
       1: 'https://api.cow.fi/mainnet',
       100: 'https://api.cow.fi/xdai',
+      42161: 'https://api.cow.fi/arbitrum_one',
       11155111: 'https://api.cow.fi/sepolia',
     },
     explorerBaseUri:
@@ -278,5 +313,11 @@ export default () => ({
     // The app names should match the "App Code" of the metadata provided to CoW Swap.
     // See https://explorer.cow.fi/appdata?tab=encode
     allowedApps: process.env.SWAPS_ALLOWED_APPS?.split(',') || [],
+    // Upper limit of parts we will request from CoW for TWAP orders, after
+    // which we return base values for those orders
+    // Note: 11 is the average number of parts, confirmed by CoW
+    maxNumberOfParts: parseInt(
+      process.env.SWAPS_MAX_NUMBER_OF_PARTS ?? `${11}`,
+    ),
   },
 });

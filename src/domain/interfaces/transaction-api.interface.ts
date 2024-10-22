@@ -6,8 +6,9 @@ import { Delegate } from '@/domain/delegate/entities/delegate.entity';
 import { Page } from '@/domain/entities/page.entity';
 import { Estimation } from '@/domain/estimations/entities/estimation.entity';
 import { GetEstimationDto } from '@/domain/estimations/entities/get-estimation.dto.entity';
+import { IndexingStatus } from '@/domain/indexing/entities/indexing-status.entity';
 import { Message } from '@/domain/messages/entities/message.entity';
-import { Device } from '@/domain/notifications/entities/device.entity';
+import { Device } from '@/domain/notifications/v1/entities/device.entity';
 import { CreationTransaction } from '@/domain/safe/entities/creation-transaction.entity';
 import { ModuleTransaction } from '@/domain/safe/entities/module-transaction.entity';
 import { MultisigTransaction } from '@/domain/safe/entities/multisig-transaction.entity';
@@ -29,25 +30,31 @@ export interface ITransactionApi {
 
   getSingletons(): Promise<Singleton[]>;
 
-  getSafe(safeAddress: string): Promise<Safe>;
+  getIndexingStatus(): Promise<IndexingStatus>;
 
-  clearSafe(address: string): Promise<void>;
+  getSafe(safeAddress: `0x${string}`): Promise<Safe>;
 
-  getContract(contractAddress: string): Promise<Contract>;
+  clearSafe(address: `0x${string}`): Promise<void>;
+
+  isSafe(address: `0x${string}`): Promise<boolean>;
+
+  clearIsSafe(address: `0x${string}`): Promise<void>;
+
+  getContract(contractAddress: `0x${string}`): Promise<Contract>;
 
   getDelegates(args: {
-    safeAddress?: string;
-    delegate?: string;
-    delegator?: string;
+    safeAddress?: `0x${string}`;
+    delegate?: `0x${string}`;
+    delegator?: `0x${string}`;
     label?: string;
     limit?: number;
     offset?: number;
   }): Promise<Page<Delegate>>;
 
   getDelegatesV2(args: {
-    safeAddress?: string;
-    delegate?: string;
-    delegator?: string;
+    safeAddress?: `0x${string}`;
+    delegate?: `0x${string}`;
+    delegator?: `0x${string}`;
     label?: string;
     limit?: number;
     offset?: number;
@@ -70,14 +77,14 @@ export interface ITransactionApi {
   }): Promise<void>;
 
   deleteDelegate(args: {
-    delegate: string;
-    delegator: string;
+    delegate: `0x${string}`;
+    delegator: `0x${string}`;
     signature: string;
   }): Promise<unknown>;
 
   deleteSafeDelegate(args: {
-    delegate: string;
-    safeAddress: string;
+    delegate: `0x${string}`;
+    safeAddress: `0x${string}`;
     signature: string;
   }): Promise<unknown>;
 
@@ -107,6 +114,7 @@ export interface ITransactionApi {
     to?: string;
     value?: string;
     tokenAddress?: string;
+    txHash?: string;
     limit?: number;
     offset?: number;
   }): Promise<Page<Transfer>>;
@@ -123,14 +131,15 @@ export interface ITransactionApi {
   getModuleTransaction(moduleTransactionId: string): Promise<ModuleTransaction>;
 
   getModuleTransactions(args: {
-    safeAddress: string;
+    safeAddress: `0x${string}`;
     to?: string;
+    txHash?: string;
     module?: string;
     limit?: number;
     offset?: number;
   }): Promise<Page<ModuleTransaction>>;
 
-  clearModuleTransactions(safeAddress: string): Promise<void>;
+  clearModuleTransactions(safeAddress: `0x${string}`): Promise<void>;
 
   getMultisigTransaction(
     safeTransactionHash: string,
@@ -144,7 +153,7 @@ export interface ITransactionApi {
   clearMultisigTransaction(safeTransactionHash: string): Promise<void>;
 
   getMultisigTransactions(args: {
-    safeAddress: string;
+    safeAddress: `0x${string}`;
     ordering?: string;
     executed?: boolean;
     trusted?: boolean;
@@ -160,10 +169,12 @@ export interface ITransactionApi {
 
   clearMultisigTransactions(safeAddress: string): Promise<void>;
 
-  getCreationTransaction(safeAddress: string): Promise<CreationTransaction>;
+  getCreationTransaction(
+    safeAddress: `0x${string}`,
+  ): Promise<CreationTransaction>;
 
   getAllTransactions(args: {
-    safeAddress: string;
+    safeAddress: `0x${string}`;
     ordering?: string;
     executed?: boolean;
     queued?: boolean;
@@ -171,13 +182,13 @@ export interface ITransactionApi {
     offset?: number;
   }): Promise<Page<Transaction>>;
 
-  clearAllTransactions(safeAddress: string): Promise<void>;
+  clearAllTransactions(safeAddress: `0x${string}`): Promise<void>;
 
   getToken(address: string): Promise<Token>;
 
   getTokens(args: { limit?: number; offset?: number }): Promise<Page<Token>>;
 
-  getSafesByOwner(ownerAddress: string): Promise<SafeList>;
+  getSafesByOwner(ownerAddress: `0x${string}`): Promise<SafeList>;
 
   postDeviceRegistration(args: {
     device: Device;
@@ -189,18 +200,18 @@ export interface ITransactionApi {
 
   deleteSafeRegistration(args: {
     uuid: string;
-    safeAddress: string;
+    safeAddress: `0x${string}`;
   }): Promise<void>;
 
   getEstimation(args: {
-    address: string;
+    address: `0x${string}`;
     getEstimationDto: GetEstimationDto;
   }): Promise<Estimation>;
 
   getMessageByHash(messageHash: string): Promise<Message>;
 
   getMessagesBySafe(args: {
-    safeAddress: string;
+    safeAddress: `0x${string}`;
     limit?: number;
     offset?: number;
   }): Promise<Page<Message>>;
@@ -211,7 +222,7 @@ export interface ITransactionApi {
   }): Promise<unknown>;
 
   postMessage(args: {
-    safeAddress: string;
+    safeAddress: `0x${string}`;
     message: unknown;
     safeAppId: number | null;
     signature: string;
@@ -222,7 +233,7 @@ export interface ITransactionApi {
     signature: `0x${string}`;
   }): Promise<unknown>;
 
-  clearMessagesBySafe(args: { safeAddress: string }): Promise<void>;
+  clearMessagesBySafe(args: { safeAddress: `0x${string}` }): Promise<void>;
 
   clearMessagesByHash(args: { messageHash: string }): Promise<void>;
 }

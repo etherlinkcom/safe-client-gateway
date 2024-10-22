@@ -26,7 +26,8 @@ export class SafesController {
   @Get('chains/:chainId/safes/:safeAddress')
   async getSafe(
     @Param('chainId') chainId: string,
-    @Param('safeAddress') safeAddress: string,
+    @Param('safeAddress', new ValidationPipe(AddressSchema))
+    safeAddress: `0x${string}`,
   ): Promise<SafeState> {
     return this.service.getSafeInfo({ chainId, safeAddress });
   }
@@ -35,17 +36,22 @@ export class SafesController {
   @Get('chains/:chainId/safes/:safeAddress/nonces')
   async getNonces(
     @Param('chainId') chainId: string,
-    @Param('safeAddress') safeAddress: string,
+    @Param('safeAddress', new ValidationPipe(AddressSchema))
+    safeAddress: `0x${string}`,
   ): Promise<SafeNonces> {
     return this.service.getNonces({ chainId, safeAddress });
   }
 
-  @ApiQuery({ name: 'wallet_address', required: false })
+  @ApiQuery({ name: 'wallet_address', required: false, type: String })
+  @ApiQuery({ name: 'currency', required: true, type: String })
+  @ApiQuery({ name: 'safes', required: true, type: String })
+  @ApiQuery({ name: 'trusted', required: false, type: Boolean })
+  @ApiQuery({ name: 'exclude_spam', required: false, type: Boolean })
   @Get('safes')
   async getSafeOverview(
     @Query('currency') currency: string,
     @Query('safes', new Caip10AddressesPipe())
-    addresses: Array<{ chainId: string; address: string }>,
+    addresses: Array<{ chainId: string; address: `0x${string}` }>,
     @Query('trusted', new DefaultValuePipe(false), ParseBoolPipe)
     trusted: boolean,
     @Query('exclude_spam', new DefaultValuePipe(true), ParseBoolPipe)
