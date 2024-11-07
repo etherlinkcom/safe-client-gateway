@@ -1,7 +1,8 @@
 import { faker } from '@faker-js/faker';
-import { INestApplication } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
-import * as request from 'supertest';
+import type { INestApplication } from '@nestjs/common';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import request from 'supertest';
 import { TestAppProvider } from '@/__tests__/test-app.provider';
 import { TestCacheModule } from '@/datasources/cache/__tests__/test.cache.module';
 import { TestNetworkModule } from '@/datasources/network/__tests__/test.network.module';
@@ -18,23 +19,20 @@ import { TestLoggingModule } from '@/logging/__tests__/test.logging.module';
 import configuration from '@/config/entities/__tests__/configuration';
 import { IConfigurationService } from '@/config/configuration.service.interface';
 import { tokenBuilder } from '@/domain/tokens/__tests__/token.builder';
-import {
-  INetworkService,
-  NetworkService,
-} from '@/datasources/network/network.service.interface';
+import type { INetworkService } from '@/datasources/network/network.service.interface';
+import { NetworkService } from '@/datasources/network/network.service.interface';
 import { proposeTransactionDtoBuilder } from '@/routes/transactions/entities/__tests__/propose-transaction.dto.builder';
 import { AppModule } from '@/app.module';
-import { TestAccountDataSourceModule } from '@/datasources/account/__tests__/test.account.datasource.module';
-import { AccountDataSourceModule } from '@/datasources/account/account.datasource.module';
 import { CacheModule } from '@/datasources/cache/cache.module';
 import { NetworkModule } from '@/datasources/network/network.module';
 import { RequestScopedLoggingModule } from '@/logging/logging.module';
 import { getAddress } from 'viem';
 import { TestQueuesApiModule } from '@/datasources/queues/__tests__/test.queues-api.module';
 import { QueuesApiModule } from '@/datasources/queues/queues-api.module';
+import type { Server } from 'net';
 
 describe('Propose transaction - Transactions Controller (Unit)', () => {
-  let app: INestApplication;
+  let app: INestApplication<Server>;
   let safeConfigUrl: string;
   let networkService: jest.MockedObjectDeep<INetworkService>;
 
@@ -44,8 +42,6 @@ describe('Propose transaction - Transactions Controller (Unit)', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule.register(configuration)],
     })
-      .overrideModule(AccountDataSourceModule)
-      .useModule(TestAccountDataSourceModule)
       .overrideModule(CacheModule)
       .useModule(TestCacheModule)
       .overrideModule(RequestScopedLoggingModule)
@@ -56,8 +52,10 @@ describe('Propose transaction - Transactions Controller (Unit)', () => {
       .useModule(TestQueuesApiModule)
       .compile();
 
-    const configurationService = moduleFixture.get(IConfigurationService);
-    safeConfigUrl = configurationService.get('safeConfig.baseUri');
+    const configurationService = moduleFixture.get<IConfigurationService>(
+      IConfigurationService,
+    );
+    safeConfigUrl = configurationService.getOrThrow('safeConfig.baseUri');
     networkService = moduleFixture.get(NetworkService);
 
     app = await new TestAppProvider().provide(moduleFixture);

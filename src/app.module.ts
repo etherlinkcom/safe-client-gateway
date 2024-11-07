@@ -6,6 +6,7 @@ import {
   RequestMethod,
 } from '@nestjs/common';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ClsMiddleware, ClsModule } from 'nestjs-cls';
 import { join } from 'path';
 import { ChainsModule } from '@/routes/chains/chains.module';
@@ -13,18 +14,22 @@ import { BalancesModule } from '@/routes/balances/balances.module';
 import { NetworkModule } from '@/datasources/network/network.module';
 import { ConfigurationModule } from '@/config/configuration.module';
 import { CacheModule } from '@/datasources/cache/cache.module';
-import { CacheHooksModule } from '@/routes/cache-hooks/cache-hooks.module';
 import { CollectiblesModule } from '@/routes/collectibles/collectibles.module';
+import { CommunityModule } from '@/routes/community/community.module';
 import { ContractsModule } from '@/routes/contracts/contracts.module';
 import { DataDecodedModule } from '@/routes/data-decode/data-decoded.module';
 import { DelegatesModule } from '@/routes/delegates/delegates.module';
+import {
+  HooksModule,
+  HooksModuleWithNotifications,
+} from '@/routes/hooks/hooks.module';
 import { SafeAppsModule } from '@/routes/safe-apps/safe-apps.module';
 import { HealthModule } from '@/routes/health/health.module';
 import { OwnersModule } from '@/routes/owners/owners.module';
 import { AboutModule } from '@/routes/about/about.module';
 import { TransactionsModule } from '@/routes/transactions/transactions.module';
 import { SafesModule } from '@/routes/safes/safes.module';
-import { NotificationsModule } from '@/routes/notifications/notifications.module';
+import { NotificationsModule } from '@/routes/notifications/v1/notifications.module';
 import { EstimationsModule } from '@/routes/estimations/estimations.module';
 import { MessagesModule } from '@/routes/messages/messages.module';
 import { RequestScopedLoggingModule } from '@/logging/logging.module';
@@ -35,17 +40,17 @@ import { GlobalErrorFilter } from '@/routes/common/filters/global-error.filter';
 import { DataSourceErrorFilter } from '@/routes/common/filters/data-source-error.filter';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { RootModule } from '@/routes/root/root.module';
-import { EmailControllerModule } from '@/routes/email/email.controller.module';
 import { AlertsControllerModule } from '@/routes/alerts/alerts.controller.module';
 import { RecoveryModule } from '@/routes/recovery/recovery.module';
 import { RelayControllerModule } from '@/routes/relay/relay.controller.module';
-import { SubscriptionControllerModule } from '@/routes/subscriptions/subscription.module';
-import { LockingModule } from '@/routes/locking/locking.module';
 import { ZodErrorFilter } from '@/routes/common/filters/zod-error.filter';
 import { CacheControlInterceptor } from '@/routes/common/interceptors/cache-control.interceptor';
 import { AuthModule } from '@/routes/auth/auth.module';
 import { TransactionsViewControllerModule } from '@/routes/transactions/transactions-view.controller';
 import { DelegatesV2Module } from '@/routes/delegates/v2/delegates.v2.module';
+import { AccountsModule } from '@/routes/accounts/accounts.module';
+import { NotificationsModuleV2 } from '@/routes/notifications/v2/notifications.module';
+import { TargetedMessagingModule } from '@/routes/targeted-messaging/targeted-messaging.module';
 
 @Module({})
 export class AppModule implements NestModule {
@@ -55,9 +60,12 @@ export class AppModule implements NestModule {
   static register(configFactory = configuration): DynamicModule {
     const {
       auth: isAuthFeatureEnabled,
+      accounts: isAccountsFeatureEnabled,
       email: isEmailFeatureEnabled,
       confirmationView: isConfirmationViewEnabled,
       delegatesV2: isDelegatesV2Enabled,
+      pushNotifications: isPushNotificationsEnabled,
+      targetedMessaging: isTargetedMessagingFeatureEnabled,
     } = configFactory()['features'];
 
     return {
@@ -65,27 +73,26 @@ export class AppModule implements NestModule {
       imports: [
         // features
         AboutModule,
+        ...(isAccountsFeatureEnabled ? [AccountsModule] : []),
         ...(isAuthFeatureEnabled ? [AuthModule] : []),
         BalancesModule,
-        CacheHooksModule,
         ChainsModule,
         CollectiblesModule,
+        CommunityModule,
         ContractsModule,
         DataDecodedModule,
         // TODO: delete/rename DelegatesModule when clients migration to v2 is completed.
         DelegatesModule,
         ...(isDelegatesV2Enabled ? [DelegatesV2Module] : []),
+        // Note: this feature will not work as expected until we reintegrate the email service
         ...(isEmailFeatureEnabled
-          ? [
-              AlertsControllerModule,
-              EmailControllerModule,
-              RecoveryModule,
-              SubscriptionControllerModule,
-            ]
+          ? [AlertsControllerModule, RecoveryModule]
           : []),
         EstimationsModule,
         HealthModule,
-        LockingModule,
+        ...(isPushNotificationsEnabled
+          ? [HooksModuleWithNotifications, NotificationsModuleV2]
+          : [HooksModule]),
         MessagesModule,
         NotificationsModule,
         OwnersModule,
@@ -93,6 +100,7 @@ export class AppModule implements NestModule {
         RootModule,
         SafeAppsModule,
         SafesModule,
+        ...(isTargetedMessagingFeatureEnabled ? [TargetedMessagingModule] : []),
         TransactionsModule,
         ...(isConfirmationViewEnabled
           ? [TransactionsViewControllerModule]
@@ -110,6 +118,7 @@ export class AppModule implements NestModule {
         ConfigurationModule.register(configFactory),
         NetworkModule,
         RequestScopedLoggingModule,
+        ScheduleModule.forRoot(),
         ServeStaticModule.forRoot({
           rootPath: join(__dirname, '..', 'assets'),
           // Excludes the paths under '/' (base url) from being served as static content

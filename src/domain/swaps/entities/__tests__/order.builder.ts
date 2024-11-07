@@ -1,9 +1,13 @@
+import type { Order } from '@/domain/swaps/entities/order.entity';
 import {
-  Order,
+  BuyTokenBalance,
   OrderClass,
+  OrderKind,
   OrderStatus,
+  SellTokenBalance,
 } from '@/domain/swaps/entities/order.entity';
-import { Builder, IBuilder } from '@/__tests__/builder';
+import type { IBuilder } from '@/__tests__/builder';
+import { Builder } from '@/__tests__/builder';
 import { faker } from '@faker-js/faker';
 import { getAddress } from 'viem';
 
@@ -28,15 +32,22 @@ export function orderBuilder(): IBuilder<Order> {
       }),
     )
     .with('feeAmount', faker.number.bigInt({ min: 1 }))
-    .with('kind', faker.helpers.arrayElement(['buy', 'sell'] as const))
+    .with('kind', faker.helpers.arrayElement([OrderKind.Buy, OrderKind.Sell]))
     .with('partiallyFillable', faker.datatype.boolean())
     .with(
       'sellTokenBalance',
-      faker.helpers.arrayElement(['erc20', 'internal', 'external'] as const),
+      faker.helpers.arrayElement([
+        SellTokenBalance.Erc20,
+        SellTokenBalance.Internal,
+        SellTokenBalance.External,
+      ]),
     )
     .with(
       'buyTokenBalance',
-      faker.helpers.arrayElement(['erc20', 'internal'] as const),
+      faker.helpers.arrayElement([
+        BuyTokenBalance.Erc20,
+        BuyTokenBalance.Internal,
+      ]),
     )
     .with(
       'signingScheme',

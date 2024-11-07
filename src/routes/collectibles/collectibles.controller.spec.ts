@@ -1,7 +1,8 @@
 import { faker } from '@faker-js/faker';
-import { INestApplication } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
-import * as request from 'supertest';
+import type { INestApplication } from '@nestjs/common';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import request from 'supertest';
 import { TestAppProvider } from '@/__tests__/test-app.provider';
 import { AppModule } from '@/app.module';
 import { IConfigurationService } from '@/config/configuration.service.interface';
@@ -14,13 +15,11 @@ import {
   NetworkResponseError,
 } from '@/datasources/network/entities/network.error.entity';
 import { NetworkModule } from '@/datasources/network/network.module';
-import {
-  INetworkService,
-  NetworkService,
-} from '@/datasources/network/network.service.interface';
+import type { INetworkService } from '@/datasources/network/network.service.interface';
+import { NetworkService } from '@/datasources/network/network.service.interface';
 import { chainBuilder } from '@/domain/chains/entities/__tests__/chain.builder';
 import { collectibleBuilder } from '@/domain/collectibles/entities/__tests__/collectible.builder';
-import { Collectible } from '@/domain/collectibles/entities/collectible.entity';
+import type { Collectible } from '@/domain/collectibles/entities/collectible.entity';
 import {
   limitAndOffsetUrlFactory,
   pageBuilder,
@@ -28,24 +27,32 @@ import {
 import { TestLoggingModule } from '@/logging/__tests__/test.logging.module';
 import { RequestScopedLoggingModule } from '@/logging/logging.module';
 import { PaginationData } from '@/routes/common/pagination/pagination.data';
-import { AccountDataSourceModule } from '@/datasources/account/account.datasource.module';
-import { TestAccountDataSourceModule } from '@/datasources/account/__tests__/test.account.datasource.module';
 import { TestQueuesApiModule } from '@/datasources/queues/__tests__/test.queues-api.module';
 import { QueuesApiModule } from '@/datasources/queues/queues-api.module';
+import type { Server } from 'net';
+import { getAddress } from 'viem';
+import { safeBuilder } from '@/domain/safe/entities/__tests__/safe.builder';
 
 describe('Collectibles Controller (Unit)', () => {
-  let app: INestApplication;
+  let app: INestApplication<Server>;
   let safeConfigUrl: string;
   let networkService: jest.MockedObjectDeep<INetworkService>;
 
   beforeEach(async () => {
     jest.resetAllMocks();
 
+    const defaultConfiguration = configuration();
+    const testConfiguration = (): typeof defaultConfiguration => ({
+      ...defaultConfiguration,
+      features: {
+        ...defaultConfiguration.features,
+        counterfactualBalances: false,
+      },
+    });
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule.register(configuration)],
+      imports: [AppModule.register(testConfiguration)],
     })
-      .overrideModule(AccountDataSourceModule)
-      .useModule(TestAccountDataSourceModule)
       .overrideModule(CacheModule)
       .useModule(TestCacheModule)
       .overrideModule(RequestScopedLoggingModule)
@@ -56,8 +63,10 @@ describe('Collectibles Controller (Unit)', () => {
       .useModule(TestQueuesApiModule)
       .compile();
 
-    const configurationService = moduleFixture.get(IConfigurationService);
-    safeConfigUrl = configurationService.get('safeConfig.baseUri');
+    const configurationService = moduleFixture.get<IConfigurationService>(
+      IConfigurationService,
+    );
+    safeConfigUrl = configurationService.getOrThrow('safeConfig.baseUri');
     networkService = moduleFixture.get(NetworkService);
 
     app = await new TestAppProvider().provide(moduleFixture);
@@ -71,9 +80,10 @@ describe('Collectibles Controller (Unit)', () => {
   describe('GET /v2/collectibles', () => {
     it('is successful', async () => {
       const chainId = faker.string.numeric();
-      const safeAddress = faker.finance.ethereumAddress();
+      const safeAddress = getAddress(faker.finance.ethereumAddress());
       const chainResponse = chainBuilder().with('chainId', chainId).build();
       const pageLimit = 1;
+      const safeResponse = safeBuilder().build();
       const collectiblesResponse = pageBuilder<Collectible>()
         .with('next', limitAndOffsetUrlFactory(pageLimit, 0))
         .with('previous', limitAndOffsetUrlFactory(pageLimit, 0))
@@ -88,6 +98,8 @@ describe('Collectibles Controller (Unit)', () => {
         switch (url) {
           case `${safeConfigUrl}/api/v1/chains/${chainId}`:
             return Promise.resolve({ data: chainResponse, status: 200 });
+          case `${chainResponse.transactionService}/api/v1/safes/${safeAddress}`:
+            return Promise.resolve({ data: safeResponse, status: 200 });
           case `${chainResponse.transactionService}/api/v2/safes/${safeAddress}/collectibles/`:
             return Promise.resolve({ data: collectiblesResponse, status: 200 });
           default:
@@ -112,11 +124,11 @@ describe('Collectibles Controller (Unit)', () => {
 
     it('pagination data is forwarded to tx service', async () => {
       const chainId = faker.string.numeric();
-      const safeAddress = faker.finance.ethereumAddress();
+      const safeAddress = getAddress(faker.finance.ethereumAddress());
       const chainResponse = chainBuilder().with('chainId', chainId).build();
       const limit = 10;
       const offset = 20;
-
+      const safeResponse = safeBuilder().build();
       const collectiblesResponse = pageBuilder<Collectible>()
         .with('next', null)
         .with('previous', null)
@@ -131,6 +143,8 @@ describe('Collectibles Controller (Unit)', () => {
         switch (url) {
           case `${safeConfigUrl}/api/v1/chains/${chainId}`:
             return Promise.resolve({ data: chainResponse, status: 200 });
+          case `${chainResponse.transactionService}/api/v1/safes/${safeAddress}`:
+            return Promise.resolve({ data: safeResponse, status: 200 });
           case `${chainResponse.transactionService}/api/v2/safes/${safeAddress}/collectibles/`:
             return Promise.resolve({ data: collectiblesResponse, status: 200 });
           default:
@@ -156,11 +170,11 @@ describe('Collectibles Controller (Unit)', () => {
 
     it('excludeSpam and trusted params are forwarded to tx service', async () => {
       const chainId = faker.string.numeric();
-      const safeAddress = faker.finance.ethereumAddress();
+      const safeAddress = getAddress(faker.finance.ethereumAddress());
       const chainResponse = chainBuilder().with('chainId', chainId).build();
       const excludeSpam = true;
       const trusted = true;
-
+      const safeResponse = safeBuilder().build();
       const collectiblesResponse = pageBuilder<Collectible>()
         .with('next', null)
         .with('previous', null)
@@ -175,6 +189,8 @@ describe('Collectibles Controller (Unit)', () => {
         switch (url) {
           case `${safeConfigUrl}/api/v1/chains/${chainId}`:
             return Promise.resolve({ data: chainResponse, status: 200 });
+          case `${chainResponse.transactionService}/api/v1/safes/${safeAddress}`:
+            return Promise.resolve({ data: safeResponse, status: 200 });
           case `${chainResponse.transactionService}/api/v2/safes/${safeAddress}/collectibles/`:
             return Promise.resolve({ data: collectiblesResponse, status: 200 });
           default:
@@ -200,8 +216,9 @@ describe('Collectibles Controller (Unit)', () => {
 
     it('tx service collectibles returns 400', async () => {
       const chainId = faker.string.numeric();
-      const safeAddress = faker.finance.ethereumAddress();
+      const safeAddress = getAddress(faker.finance.ethereumAddress());
       const chainResponse = chainBuilder().with('chainId', chainId).build();
+      const safeResponse = safeBuilder().build();
       const transactionServiceUrl = `${chainResponse.transactionService}/api/v2/safes/${safeAddress}/collectibles/`;
       const transactionServiceError = new NetworkResponseError(
         new URL(transactionServiceUrl),
@@ -214,6 +231,8 @@ describe('Collectibles Controller (Unit)', () => {
         switch (url) {
           case `${safeConfigUrl}/api/v1/chains/${chainId}`:
             return Promise.resolve({ data: chainResponse, status: 200 });
+          case `${chainResponse.transactionService}/api/v1/safes/${safeAddress}`:
+            return Promise.resolve({ data: safeResponse, status: 200 });
           case transactionServiceUrl:
             return Promise.reject(transactionServiceError);
           default:
@@ -233,8 +252,9 @@ describe('Collectibles Controller (Unit)', () => {
 
     it('tx service collectibles does not return a response', async () => {
       const chainId = faker.string.numeric();
-      const safeAddress = faker.finance.ethereumAddress();
+      const safeAddress = getAddress(faker.finance.ethereumAddress());
       const chainResponse = chainBuilder().with('chainId', chainId).build();
+      const safeResponse = safeBuilder().build();
       const transactionServiceUrl = `${chainResponse.transactionService}/api/v2/safes/${safeAddress}/collectibles/`;
       const transactionServiceError = new NetworkRequestError(
         new URL(transactionServiceUrl),
@@ -243,6 +263,8 @@ describe('Collectibles Controller (Unit)', () => {
         switch (url) {
           case `${safeConfigUrl}/api/v1/chains/${chainId}`:
             return Promise.resolve({ data: chainResponse, status: 200 });
+          case `${chainResponse.transactionService}/api/v1/safes/${safeAddress}`:
+            return Promise.resolve({ data: safeResponse, status: 200 });
           case transactionServiceUrl:
             return Promise.reject(transactionServiceError);
           default:

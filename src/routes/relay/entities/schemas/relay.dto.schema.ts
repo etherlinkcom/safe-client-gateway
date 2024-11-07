@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import * as semver from 'semver';
+import semver from 'semver';
 import { AddressSchema } from '@/validation/entities/schemas/address.schema';
 import { HexSchema } from '@/validation/entities/schemas/hex.schema';
 
@@ -19,7 +19,7 @@ export const RelayDtoSchema = z.object({
 
       try {
         return BigInt(value);
-      } catch (e) {
+      } catch {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: 'Unable to parse value',

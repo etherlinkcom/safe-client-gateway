@@ -2,17 +2,13 @@ import { TestAppProvider } from '@/__tests__/test-app.provider';
 import { AppModule } from '@/app.module';
 import { IConfigurationService } from '@/config/configuration.service.interface';
 import configuration from '@/config/entities/__tests__/configuration';
-import { TestAccountDataSourceModule } from '@/datasources/account/__tests__/test.account.datasource.module';
-import { AccountDataSourceModule } from '@/datasources/account/account.datasource.module';
 import { TestCacheModule } from '@/datasources/cache/__tests__/test.cache.module';
 import { CacheModule } from '@/datasources/cache/cache.module';
 import { TestNetworkModule } from '@/datasources/network/__tests__/test.network.module';
 import { NetworkResponseError } from '@/datasources/network/entities/network.error.entity';
 import { NetworkModule } from '@/datasources/network/network.module';
-import {
-  INetworkService,
-  NetworkService,
-} from '@/datasources/network/network.service.interface';
+import type { INetworkService } from '@/datasources/network/network.service.interface';
+import { NetworkService } from '@/datasources/network/network.service.interface';
 import { TestQueuesApiModule } from '@/datasources/queues/__tests__/test.queues-api.module';
 import { QueuesApiModule } from '@/datasources/queues/queues-api.module';
 import { chainBuilder } from '@/domain/chains/entities/__tests__/chain.builder';
@@ -23,14 +19,16 @@ import { RequestScopedLoggingModule } from '@/logging/logging.module';
 import { createDelegateDtoBuilder } from '@/routes/delegates/entities/__tests__/create-delegate.dto.builder';
 import { deleteDelegateV2DtoBuilder } from '@/routes/delegates/v2/entities/__tests__/delete-delegate.v2.dto.builder';
 import { faker } from '@faker-js/faker';
-import { INestApplication } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import type { INestApplication } from '@nestjs/common';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { omit } from 'lodash';
-import * as request from 'supertest';
+import type { Server } from 'net';
+import request from 'supertest';
 import { getAddress } from 'viem';
 
 describe('Delegates controller', () => {
-  let app: INestApplication;
+  let app: INestApplication<Server>;
   let safeConfigUrl: string;
   let networkService: jest.MockedObjectDeep<INetworkService>;
 
@@ -49,8 +47,6 @@ describe('Delegates controller', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule.register(testConfiguration)],
     })
-      .overrideModule(AccountDataSourceModule)
-      .useModule(TestAccountDataSourceModule)
       .overrideModule(CacheModule)
       .useModule(TestCacheModule)
       .overrideModule(RequestScopedLoggingModule)
@@ -61,8 +57,10 @@ describe('Delegates controller', () => {
       .useModule(TestQueuesApiModule)
       .compile();
 
-    const configurationService = moduleFixture.get(IConfigurationService);
-    safeConfigUrl = configurationService.get('safeConfig.baseUri');
+    const configurationService = moduleFixture.get<IConfigurationService>(
+      IConfigurationService,
+    );
+    safeConfigUrl = configurationService.getOrThrow('safeConfig.baseUri');
     networkService = moduleFixture.get(NetworkService);
 
     app = await new TestAppProvider().provide(moduleFixture);

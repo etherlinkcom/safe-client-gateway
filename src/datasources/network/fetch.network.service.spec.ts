@@ -1,8 +1,8 @@
 import { faker } from '@faker-js/faker';
-import { ILoggingService } from '@/logging/logging.interface';
+import type { ILoggingService } from '@/logging/logging.interface';
 import { NetworkResponseError } from '@/datasources/network/entities/network.error.entity';
-import { NetworkRequest } from '@/datasources/network/entities/network.request.entity';
-import { FetchClient } from '@/datasources/network/network.module';
+import type { NetworkRequest } from '@/datasources/network/entities/network.request.entity';
+import type { FetchClient } from '@/datasources/network/network.module';
 import { FetchNetworkService } from '@/datasources/network/fetch.network.service';
 
 const fetchClient = jest.fn();
@@ -19,7 +19,7 @@ const loggingServiceMock = jest.mocked(loggingService);
 describe('FetchNetworkService', () => {
   let target: FetchNetworkService;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     jest.resetAllMocks();
     target = new FetchNetworkService(fetchClientMock, loggingServiceMock);
   });

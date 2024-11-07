@@ -11,6 +11,8 @@ import {
   PaginationData,
   cursorUrlFromLimitAndOffset,
 } from '@/routes/common/pagination/pagination.data';
+import { IndexingStatus } from '@/routes/chains/entities/indexing-status.entity';
+import { IBlockchainApiManager } from '@/domain/interfaces/blockchain-api.manager.interface';
 
 @Injectable()
 export class ChainsService {
@@ -21,6 +23,8 @@ export class ChainsService {
     private readonly chainsRepository: IChainsRepository,
     @Inject(IBackboneRepository)
     private readonly backboneRepository: IBackboneRepository,
+    @Inject(IBlockchainApiManager)
+    private readonly blockchainApiManager: IBlockchainApiManager,
   ) {}
 
   async getChains(
@@ -35,29 +39,31 @@ export class ChainsService {
     const nextURL = cursorUrlFromLimitAndOffset(routeUrl, result.next);
     const previousURL = cursorUrlFromLimitAndOffset(routeUrl, result.previous);
 
-    const chains = result.results.map(
-      (chain) =>
-        new Chain(
-          chain.chainId,
-          chain.chainName,
-          chain.description,
-          chain.l2,
-          chain.nativeCurrency,
-          chain.transactionService,
-          chain.blockExplorerUriTemplate,
-          chain.disabledWallets,
-          chain.features,
-          chain.gasPrice,
-          chain.publicRpcUri,
-          chain.rpcUri,
-          chain.safeAppsRpcUri,
-          chain.shortName,
-          chain.theme,
-          chain.ensRegistryAddress,
-          chain.isTestnet,
-          chain.chainLogoUri,
-        ),
-    );
+    const chains = result.results.map((chain) => {
+      return new Chain({
+        chainId: chain.chainId,
+        chainName: chain.chainName,
+        description: chain.description,
+        l2: chain.l2,
+        nativeCurrency: chain.nativeCurrency,
+        transactionService: chain.transactionService,
+        blockExplorerUriTemplate: chain.blockExplorerUriTemplate,
+        beaconChainExplorerUriTemplate: chain.beaconChainExplorerUriTemplate,
+        disabledWallets: chain.disabledWallets,
+        features: chain.features,
+        gasPrice: chain.gasPrice,
+        publicRpcUri: chain.publicRpcUri,
+        rpcUri: chain.rpcUri,
+        safeAppsRpcUri: chain.safeAppsRpcUri,
+        shortName: chain.shortName,
+        theme: chain.theme,
+        ensRegistryAddress: chain.ensRegistryAddress,
+        isTestnet: chain.isTestnet,
+        chainLogoUri: chain.chainLogoUri,
+        balancesProvider: chain.balancesProvider,
+        contractAddresses: chain.contractAddresses,
+      });
+    });
 
     return {
       count: result.count,
@@ -69,26 +75,29 @@ export class ChainsService {
 
   async getChain(chainId: string): Promise<Chain> {
     const result = await this.chainsRepository.getChain(chainId);
-    return new Chain(
-      result.chainId,
-      result.chainName,
-      result.description,
-      result.l2,
-      result.nativeCurrency,
-      result.transactionService,
-      result.blockExplorerUriTemplate,
-      result.disabledWallets,
-      result.features,
-      result.gasPrice,
-      result.publicRpcUri,
-      result.rpcUri,
-      result.safeAppsRpcUri,
-      result.shortName,
-      result.theme,
-      result.ensRegistryAddress,
-      result.isTestnet,
-      result.chainLogoUri,
-    );
+    return new Chain({
+      chainId: result.chainId,
+      chainName: result.chainName,
+      description: result.description,
+      l2: result.l2,
+      nativeCurrency: result.nativeCurrency,
+      transactionService: result.transactionService,
+      blockExplorerUriTemplate: result.blockExplorerUriTemplate,
+      beaconChainExplorerUriTemplate: result.beaconChainExplorerUriTemplate,
+      disabledWallets: result.disabledWallets,
+      features: result.features,
+      gasPrice: result.gasPrice,
+      publicRpcUri: result.publicRpcUri,
+      rpcUri: result.rpcUri,
+      safeAppsRpcUri: result.safeAppsRpcUri,
+      shortName: result.shortName,
+      theme: result.theme,
+      ensRegistryAddress: result.ensRegistryAddress,
+      isTestnet: result.isTestnet,
+      chainLogoUri: result.chainLogoUri,
+      balancesProvider: result.balancesProvider,
+      contractAddresses: result.contractAddresses,
+    });
   }
 
   async getAboutChain(chainId: string): Promise<AboutChain> {
@@ -113,5 +122,25 @@ export class ChainsService {
       address: singleton.address,
       version: singleton.version,
     }));
+  }
+
+  async getIndexingStatus(chainId: string): Promise<IndexingStatus> {
+    const [indexingStatus, blockchainApi] = await Promise.all([
+      this.chainsRepository.getIndexingStatus(chainId),
+      this.blockchainApiManager.getApi(chainId),
+    ]);
+
+    const lastSyncedBlock = Math.min(
+      indexingStatus.erc20BlockNumber,
+      indexingStatus.masterCopiesBlockNumber,
+    );
+    const block = await blockchainApi.getBlock({
+      blockNumber: BigInt(lastSyncedBlock),
+    });
+
+    return new IndexingStatus({
+      lastSync: Number(block.timestamp),
+      synced: indexingStatus.synced,
+    });
   }
 }

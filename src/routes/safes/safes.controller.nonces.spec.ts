@@ -1,4 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { AppModule } from '@/app.module';
 import { CacheModule } from '@/datasources/cache/cache.module';
 import { TestCacheModule } from '@/datasources/cache/__tests__/test.cache.module';
@@ -8,12 +9,10 @@ import { TestLoggingModule } from '@/logging/__tests__/test.logging.module';
 import { NetworkModule } from '@/datasources/network/network.module';
 import { TestNetworkModule } from '@/datasources/network/__tests__/test.network.module';
 import { IConfigurationService } from '@/config/configuration.service.interface';
-import {
-  INetworkService,
-  NetworkService,
-} from '@/datasources/network/network.service.interface';
+import type { INetworkService } from '@/datasources/network/network.service.interface';
+import { NetworkService } from '@/datasources/network/network.service.interface';
 import { TestAppProvider } from '@/__tests__/test-app.provider';
-import * as request from 'supertest';
+import request from 'supertest';
 import { chainBuilder } from '@/domain/chains/entities/__tests__/chain.builder';
 import { safeBuilder } from '@/domain/safe/entities/__tests__/safe.builder';
 import {
@@ -21,14 +20,13 @@ import {
   toJson as multisigTransactionToJson,
 } from '@/domain/safe/entities/__tests__/multisig-transaction.builder';
 import { pageBuilder } from '@/domain/entities/__tests__/page.builder';
-import { INestApplication } from '@nestjs/common';
-import { AccountDataSourceModule } from '@/datasources/account/account.datasource.module';
-import { TestAccountDataSourceModule } from '@/datasources/account/__tests__/test.account.datasource.module';
+import type { INestApplication } from '@nestjs/common';
 import { TestQueuesApiModule } from '@/datasources/queues/__tests__/test.queues-api.module';
 import { QueuesApiModule } from '@/datasources/queues/queues-api.module';
+import type { Server } from 'net';
 
 describe('Safes Controller Nonces (Unit)', () => {
-  let app: INestApplication;
+  let app: INestApplication<Server>;
   let safeConfigUrl: string | undefined;
   let networkService: jest.MockedObjectDeep<INetworkService>;
   let configurationService: jest.MockedObjectDeep<IConfigurationService>;
@@ -39,8 +37,6 @@ describe('Safes Controller Nonces (Unit)', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule.register(configuration)],
     })
-      .overrideModule(AccountDataSourceModule)
-      .useModule(TestAccountDataSourceModule)
       .overrideModule(CacheModule)
       .useModule(TestCacheModule)
       .overrideModule(RequestScopedLoggingModule)

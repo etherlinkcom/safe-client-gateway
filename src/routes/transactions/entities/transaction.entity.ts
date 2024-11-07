@@ -14,6 +14,11 @@ import { SettingsChangeTransaction } from '@/routes/transactions/entities/settin
 import { TransactionInfo } from '@/routes/transactions/entities/transaction-info.entity';
 import { TransferTransactionInfo } from '@/routes/transactions/entities/transfer-transaction-info.entity';
 import { SwapOrderTransactionInfo } from '@/routes/transactions/entities/swaps/swap-order-info.entity';
+import { SwapTransferTransactionInfo } from '@/routes/transactions/swap-transfer-transaction-info.entity';
+import { TwapOrderTransactionInfo } from '@/routes/transactions/entities/swaps/twap-order-info.entity';
+import { NativeStakingDepositTransactionInfo } from '@/routes/transactions/entities/staking/native-staking-deposit-info.entity';
+import { NativeStakingValidatorsExitTransactionInfo } from '@/routes/transactions/entities/staking/native-staking-validators-exit-info.entity';
+import { NativeStakingWithdrawTransactionInfo } from '@/routes/transactions/entities/staking/native-staking-withdraw-info.entity';
 
 @ApiExtraModels(
   CreationTransactionInfo,
@@ -23,11 +28,18 @@ import { SwapOrderTransactionInfo } from '@/routes/transactions/entities/swaps/s
   ModuleExecutionInfo,
   MultisigExecutionInfo,
   SwapOrderTransactionInfo,
+  SwapTransferTransactionInfo,
+  TwapOrderTransactionInfo,
+  NativeStakingDepositTransactionInfo,
+  NativeStakingValidatorsExitTransactionInfo,
+  NativeStakingWithdrawTransactionInfo,
 )
 export class Transaction {
   @ApiProperty()
   id: string;
-  @ApiProperty()
+  @ApiPropertyOptional({ type: String, nullable: true })
+  txHash: `0x${string}` | null;
+  @ApiPropertyOptional({ type: Number, nullable: true })
   timestamp: number | null;
   @ApiProperty()
   txStatus: string;
@@ -37,7 +49,12 @@ export class Transaction {
       { $ref: getSchemaPath(CustomTransactionInfo) },
       { $ref: getSchemaPath(SettingsChangeTransaction) },
       { $ref: getSchemaPath(SwapOrderTransactionInfo) },
+      { $ref: getSchemaPath(SwapTransferTransactionInfo) },
+      { $ref: getSchemaPath(TwapOrderTransactionInfo) },
       { $ref: getSchemaPath(TransferTransactionInfo) },
+      { $ref: getSchemaPath(NativeStakingDepositTransactionInfo) },
+      { $ref: getSchemaPath(NativeStakingValidatorsExitTransactionInfo) },
+      { $ref: getSchemaPath(NativeStakingWithdrawTransactionInfo) },
     ],
   })
   txInfo: TransactionInfo;
@@ -59,6 +76,7 @@ export class Transaction {
     txInfo: TransactionInfo,
     executionInfo: ExecutionInfo | null = null,
     safeAppInfo: SafeAppInfo | null = null,
+    txHash: `0x${string}` | null = null,
   ) {
     this.id = id;
     this.timestamp = timestamp;
@@ -66,5 +84,6 @@ export class Transaction {
     this.txInfo = txInfo;
     this.executionInfo = executionInfo;
     this.safeAppInfo = safeAppInfo;
+    this.txHash = txHash;
   }
 }
